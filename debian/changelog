@@ -1,3 +1,18 @@
+samba (2:4.15.13+dfsg-0ubuntu1.1) jammy-security; urgency=medium
+
+  * SECURITY UPDATE: Access controlled AD LDAP attributes can be discovered
+    - debian/patches/CVE-2023-0614-*.patch: upstream patches to fix the
+      issue (some of these aren't directly used in this package as they
+      apply to the ldb library which is updated separately).
+    - debian/control: bump ldb Build-Depends to security update version.
+    - CVE-2023-0614
+  * SECURITY UPDATE: admin tool samba-tool sends passwords in cleartext
+    - debian/patches/CVE-2023-0922.patch: set default ldap client sasl
+      wrapping to seal.
+    - CVE-2023-0922
+
+ -- Marc Deslauriers <marc.deslauriers@ubuntu.com>  Thu, 30 Mar 2023 09:25:19 -0400
+
 samba (2:4.15.13+dfsg-0ubuntu1) jammy-security; urgency=medium
 
   * Updated to upstream 4.15.13 to fix multiple security issues.
