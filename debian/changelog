@@ -1,3 +1,9 @@
+samba (2:4.15.13+dfsg-0ubuntu1.1bb1) jammy; urgency=medium
+
+  * nsswitch/libwbclient: fixed a memory leak in wbcAuthenticateUserEx
+
+ -- Balabit Platform Team <devnull@dev.null>  Tue, 27 Jun 2023 17:57:10 +0200
+
 samba (2:4.15.13+dfsg-0ubuntu1.1) jammy-security; urgency=medium
 
   * SECURITY UPDATE: Access controlled AD LDAP attributes can be discovered
