@@ -1,3 +1,20 @@
+samba (2:4.15.13+dfsg-0ubuntu1.2) jammy-security; urgency=medium
+
+  * SECURITY UPDATE: Out-Of-Bounds read in winbind AUTH_CRAP
+    - debian/patches/CVE-2022-2127-*.patch
+    - CVE-2022-2127
+  * SECURITY UPDATE: Spotlight mdssvc RPC Request Infinite Loop DoS
+    - debian/patches/CVE-2023-34966-*.patch
+    - CVE-2023-34966
+  * SECURITY UPDATE: Spotlight mdssvc RPC Request Type Confusion DoS
+    - debian/patches/CVE-2023-34967-*.patch
+    - CVE-2023-34967
+  * SECURITY UPDATE: Spotlight server-side Share Path Disclosure
+    - debian/patches/CVE-2023-34968-*.patch
+    - CVE-2023-34968
+
+ -- Marc Deslauriers <marc.deslauriers@ubuntu.com>  Tue, 11 Jul 2023 08:44:35 -0400
+
 samba (2:4.15.13+dfsg-0ubuntu1.1) jammy-security; urgency=medium
 
   * SECURITY UPDATE: Access controlled AD LDAP attributes can be discovered
