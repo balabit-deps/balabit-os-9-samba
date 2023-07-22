@@ -1,3 +1,9 @@
+samba (2:4.15.13+dfsg-0ubuntu1.2bb1) jammy; urgency=medium
+
+  * Balabit patched version
+
+ -- Balabit Platform Team <devnull@dev.null>  Sat, 22 Jul 2023 02:29:08 +0000
+
 samba (2:4.15.13+dfsg-0ubuntu1.2) jammy-security; urgency=medium
 
   * SECURITY UPDATE: Out-Of-Bounds read in winbind AUTH_CRAP
