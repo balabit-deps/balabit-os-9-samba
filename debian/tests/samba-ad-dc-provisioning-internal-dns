@@ -1,0 +1,404 @@
+#!/bin/bash
+
+set -e
+set -o pipefail
+
+source debian/tests/util
+
+declare -r domain="EXAMPLE"
+declare -r realm="EXAMPLE.FAKE"
+declare -r adminpass="Passw0rd"
+declare -r test_user="test_user_${RANDOM}"
+declare -r test_pw="test_user_secret_${RANDOM}"
+declare -A user_pass
+user_pass[Administrator]="${adminpass}"
+user_pass[${test_user}]="${test_pw}"
+declare -A join_method_deps
+# Minimum set of deps: let realmd install the extra dependencies
+# as needed, depending on the join method.
+join_method_deps[realmd_sssd]="realmd krb5-user smbclient"
+join_method_deps[realmd_winbind]="realmd krb5-user smbclient"
+
+
+cleanup() {
+    rc=$?
+    set +e # so we don't exit midcleanup
+    if [ ${rc} -ne 0 ]; then
+        echo "## Something failed, gathering logs"
+        echo
+        echo "## smb.conf"
+        cat /etc/samba/smb.conf
+        echo
+        echo "## resolv.conf"
+        cat /etc/resolv.conf
+        echo
+        echo "## resolvectl status"
+        resolvectl status
+        echo "## journal for samba-ad-dc.service"
+        journalctl -u samba-ad-dc.service --lines 500
+        echo
+        for log in /var/log/samba/log.*; do
+            # skip compressed logrotated files
+            if [ "${log%.gz}" != "${log}" ]; then
+                continue
+            fi
+            [ -s "${log}" ] || continue
+            echo "## $(basename ${log}):"
+            tail -n 500 "${log}"
+            echo
+        done
+        echo "## syslog"
+        tail -n 500 /var/log/syslog
+    fi
+}
+
+trap cleanup EXIT
+
+assert_testparm() {
+    local parameter="${1}"
+    local expected_value="${2}"
+    local current_value=""
+    local -i retval=0
+
+    echo -n "Asserting ${parameter} is ${expected_value}: "
+    current_value=$(testparm -s --parameter-name "${parameter}" 2>/dev/null) || {
+        retval=$?
+        echo "FAIL"
+        return ${retval}
+    }
+    if [ "${current_value}" = "${expected_value}" ]; then
+        echo "OK"
+        return 0
+    else
+        echo "FAIL"
+        return 1
+    fi
+}
+
+basic_config_tests() {
+    echo "## Basic config tests"
+    testparm -s > /dev/null
+    assert_testparm "realm" "${realm}"
+    assert_testparm "workgroup" "${domain}"
+    assert_testparm "server role" "active directory domain controller"
+    echo
+}
+
+dns_tests() {
+    echo "## DNS tests"
+    echo "Obtaining administrator kerberos ticket"
+    echo "${adminpass}" | timeout --verbose 30 kinit Administrator
+    echo
+    echo "Querying server info"
+    samba-tool dns serverinfo "$(hostname)"
+    echo
+    echo "Checking we got a service ticket of type host/"
+    klist | grep -i "host/$(hostname)"
+    echo
+    echo "Checking specific DNS records"
+    for srv in _ldap._tcp _kerberos._tcp _kerberos._udp _kpasswd._udp; do
+        echo -n "${srv}.${realm,,}: "
+        dig @localhost +short -t SRV ${srv}.${realm,,}
+        echo
+    done
+    echo
+    echo -n "Checking that our hostname \"$(hostname)\" is in DNS: "
+    myip=$(dig @localhost +short -t A "$(hostname).${realm,,}")
+    echo "${myip}"
+    echo
+}
+
+user_creation_tests() {
+    echo "## User creation tests"
+    samba-tool domain passwordsettings set --complexity=off
+    echo "Creating user \"${test_user}\" with password ${test_pw}"
+    samba-tool user add "${test_user}" "${test_pw}"
+    echo
+    echo "Attempting to obtain kerberos ticket for user \"${test_user}\""
+    # just in case it ends up waiting at a prompt, we use "timeout"
+    echo "${test_pw}" | timeout --verbose 30 kinit "${test_user}"
+    echo "Ticket obtained"
+    klist
+    echo
+}
+
+smbclient_tests() {
+    echo "## smbclient tests"
+    kdestroy || :
+    echo
+    echo "Obtaining a TGT for ${test_user}"
+    echo "${test_pw}" | timeout --verbose 30 kinit "${test_user}"
+    klist | grep krbtgt
+    echo
+    echo "Attempting password-less authentication with smbclient"
+    echo
+    echo "Listing shares"
+    smbclient -L "$(hostname)" --use-kerberos=required -k
+    echo
+    echo "Listing the sysvol share"
+    smbclient "//$(hostname)/sysvol" --use-kerberos=required -k -c "ls"
+    echo
+    echo "Listing policies"
+    # lowercase the ${realm}
+    smbclient "//$(hostname)/sysvol" --use-kerberos=required -k -c "ls ${realm,,}/Policies/*"
+    echo
+    echo "Checking that we have a ticket for the cifs service after all these commands"
+    klist | grep cifs/
+    echo
+}
+
+server_join_tests() {
+    local member_server
+    # the join methods are the keys of the join_method_deps dict
+    local -a methods=("${!join_method_deps[@]}")
+    local member_server="member-server"
+
+    echo "## Server join tests"
+    echo "## Initializing lxd"
+    setup_lxd "${realm,,}"
+
+    for method in "${methods[@]}"; do
+        echo "## Setting up member server to join a domain using method ${method}"
+        setup_member_server "${member_server}" "${method}"
+        echo "## Joining domain with method ${method}"
+        join_domain "${member_server}" "${method}"
+        echo
+        echo "## Verifying join with method ${method}"
+        verify_join "${member_server}" "${method}"
+        echo
+        echo "## Leaving domain with method ${method}"
+        leave_domain "${member_server}" "${method}"
+        echo
+        echo "## Destroying member server"
+        lxc delete --force "${member_server}"
+    done
+}
+
+setup_member_server() {
+    local container_name="${1}"
+    local method="${2}"
+    local release
+
+    release="$(lsb_release -cs)"
+    if [ -z "${join_method_deps[${method}]}" ]; then
+        echo "## INTERNAL ERROR, invalid join method: ${method}"
+        return 1
+    fi
+    echo "## Got test dependencies: ${join_method_deps[${method}]}"
+    # can't use cloud-init here to install packages, because we first need to
+    # sync the apt config from the host to the container
+    echo "## Launching ${release} container"
+    lxc launch "ubuntu-daily:${release}" "${container_name}" -q
+    wait_container_ready "${container_name}"
+    send_apt_config "${container_name}"
+    copy_local_apt_files "${container_name}"
+    echo "## Installing dependencies in test container"
+    install_packages_in_container "${container_name}" ${join_method_deps[${method}]}
+}
+
+join_domain_realmd_winbind() {
+    local server="${1}"
+    local discover_cmd="realm discover -v --membership-software=samba --client-software=winbind ${realm,,}"
+    local join_cmd="realm join -v --membership-software=samba --client-software=winbind ${realm,,}"
+
+    echo "## Domain information"
+    lxc exec "${server}" -- ${discover_cmd}
+    echo
+    echo "## Running join command: ${join_cmd}"
+    echo "${adminpass}" | lxc exec "${server}" -- ${join_cmd}
+    # LP: #1980246
+    # So far, only lunar and later automatically add winbind to /etc/nsswitch.conf.
+    lxc exec "${server}" -- sed -r -i \
+          -e  '/^(passwd|group):.*[[:space:]]winbind\b/b' \
+          -e 's/^(passwd|group):.*/& winbind/' \
+          /etc/nsswitch.conf
+}
+
+verify_join_realmd_winbind() {
+    local server="${1}"
+    local member_domain
+
+    echo -n "## Verifying member server joined domain name: "
+    member_domain=$(lxc exec "${server}" -- wbinfo --own-domain)
+    echo "${member_domain}"
+    if [ "${member_domain}" != "${domain}" ]; then
+        echo "ERROR: expected member server domain to match the joined domain:"
+        echo "member server domain: ${member_domain}"
+        echo "AD domain: ${domain}"
+        return 1
+    fi
+    echo
+    # we just want to see the output, not parse it
+    echo "## Domain status in member server"
+    lxc exec "${server}" -- wbinfo --domain-info "${member_domain}"
+    echo
+    echo "## User status in member server"
+    for u in "${!user_pass[@]}"; do
+        echo "## User \"${u}@${realm}\" information:"
+        lxc exec "${server}" -- wbinfo --user-info "${u}@${realm}"
+        echo
+        echo "## id ${u}@${realm}"
+        lxc exec "${server}" -- id ${u}@${realm}
+        echo
+        echo "## kinit authentication check for user \"${u}@${realm}\" inside member server"
+        echo "${user_pass[${u}]}" | lxc exec "${server}" -- timeout --verbose 30 kinit "${u}@${realm}"
+        lxc exec "${server}" -- klist
+        echo
+        echo "## Listing shares with the obtained kerberos ticket"
+        lxc exec "${server}" -- smbclient -L "$(hostname)" --use-kerberos=required -k
+        lxc exec "${server}" -- kdestroy
+        echo
+        echo "## wbinfo authentication check for user \"${u}@${realm}\" inside member server"
+        # non-interactive format for username is user%password
+        lxc exec "${server}" -- wbinfo --authenticate="${u}@${realm}%${user_pass[${u}]}"
+        echo
+        echo "## wbinfo kerberos authentication check for user \"${u}@${realm}\" inside member server"
+        lxc exec "${server}" -- wbinfo --krb5auth="${u}@${realm}%${user_pass[${u}]}"
+        echo
+        echo "## Listing shares with the obtained kerberos ticket"
+        lxc exec "${server}" -- smbclient -L "$(hostname)" --use-kerberos=required -k
+        lxc exec "${server}" -- kdestroy
+    done
+}
+
+leave_domain_realmd_winbind() {
+    local server="${1}"
+    local leave_cmd="realm leave -v --remove --client-software=winbind"
+
+    echo "## Running leave command: ${leave_cmd}"
+    echo "${adminpass}" | lxc exec "${server}" -- ${leave_cmd}
+}
+
+join_domain_realmd_sssd() {
+    local server="${1}"
+    local discover_cmd="realm discover -v --membership-software=adcli --client-software=sssd ${realm,,}"
+    local join_cmd="realm join -v --membership-software=adcli --client-software=sssd ${realm,,}"
+
+    echo "## Domain information"
+    lxc exec "${server}" -- ${discover_cmd}
+    echo
+    echo "## Running join command: ${join_cmd}"
+    echo "${adminpass}" | lxc exec "${server}" -- ${join_cmd}
+    echo
+}
+
+verify_join_realmd_sssd() {
+    local server="${1}"
+    local samba_domain
+
+    echo -n "## Verifying member server joined domain name: "
+    samba_domain=$(lxc exec "${server}" -- sssctl domain-list)
+    echo "${samba_domain}"
+    if [ "${samba_domain}" != "${realm,,}" ]; then
+        echo "ERROR: expected member server domain to match the joined domain:"
+        echo "member server domain: ${samba_domain}"
+        echo "AD domain: ${realm,,}"
+        return 1
+    fi
+    echo
+    # we just want to see the output, not parse it
+    echo "## Domain status in member server"
+    lxc exec "${server}" -- sssctl domain-status "${realm}"
+    echo
+    echo "## User status in member server"
+    for u in "${!user_pass[@]}"; do
+        echo "## User \"${u}@${realm}\" information:"
+        lxc exec "${server}" -- sssctl user-checks "${u}@${realm}"
+        echo
+        echo "## id ${u}@${realm}"
+        lxc exec "${server}" -- id "${u}@${realm}"
+        echo
+        echo "## kinit authentication check for user \"${u}@${realm}\" inside member server"
+        echo "${user_pass[${u}]}" | lxc exec "${server}" -- timeout --verbose 30 kinit "${u}@${realm}"
+        lxc exec "${server}" -- klist
+        echo
+        echo "## Listing shares with the obtained kerberos ticket"
+        lxc exec "${server}" -- smbclient -L "$(hostname)" --use-kerberos=required -k
+        lxc exec "${server}" -- kdestroy
+    done
+}
+
+leave_domain_realmd_sssd() {
+    local server="${1}"
+    local leave_cmd="realm leave -v --remove --client-software=sssd"
+
+    echo "## Running leave command: ${leave_cmd}"
+    echo "${adminpass}" | lxc exec "${server}" -- ${leave_cmd}
+}
+
+join_domain() {
+    local server="${1}"
+    local m="${2}"
+
+    join_domain_${m} "${server}"
+}
+
+verify_join() {
+    local server="${1}"
+    local m="${2}"
+
+    verify_join_${m} "${server}"
+}
+
+leave_domain() {
+    local server="${1}"
+    local m="${2}"
+
+    leave_domain_${m} "${server}"
+}
+
+systemctl stop smbd nmbd winbind
+systemctl disable smbd nmbd winbind
+systemctl mask smbd nmbd winbind
+
+systemctl unmask samba-ad-dc
+systemctl enable samba-ad-dc
+
+if [ -f /etc/samba/smb.conf ]; then
+    mv /etc/samba/smb.conf{,.orig}
+fi
+
+# make sure we are starting fresh, as previous tests might left things around
+
+rm -rf /var/lib/samba/* /var/cache/samba/* /run/samba/*
+kdestroy || :
+
+samba-tool domain provision \
+    --domain="${domain}" \
+    --realm="${realm}" \
+    --adminpass="${adminpass}" \
+    --server-role=dc \
+    --use-rfc2307 \
+    --dns-backend=SAMBA_INTERNAL
+
+current_dns=$(resolvectl status | grep "^Current DNS Server:" | awk '{print $4}')
+
+if [ -n "${current_dns}" ]; then
+    echo "## Setting dns forwarder to ${current_dns} in smb.conf"
+    sed -r -i "s,dns forwarder = .*,dns forwarder = ${current_dns}," \
+        /etc/samba/smb.conf
+    unlink /etc/resolv.conf
+    echo "nameserver 127.0.0.1" > /etc/resolv.conf
+    # lowercase substitution
+    echo "search ${realm,,}" >> /etc/resolv.conf
+    systemctl stop systemd-resolved
+    systemctl disable systemd-resolved
+else
+    echo "## Warning, couldn't detect the current DNS server to use as forwarder in smb.conf"
+    echo "## resolvectl status:"
+    resolvectl status
+    echo "## Continuing, and hoping for the best"
+fi
+
+cp -f /var/lib/samba/private/krb5.conf /etc/krb5.conf
+
+systemctl start samba-ad-dc
+
+# give it some time, it's a lot of services to start
+sleep 5s
+
+basic_config_tests
+dns_tests
+user_creation_tests
+smbclient_tests
+server_join_tests

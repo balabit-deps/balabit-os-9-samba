@@ -64,3 +64,4 @@ CVE-2023-34968-09.patch
 CVE-2023-34968-10.patch
 CVE-2023-34968-11.patch
 CVE-2023-34968-12.patch
+secure-channel-faulty-kb5028166.patch

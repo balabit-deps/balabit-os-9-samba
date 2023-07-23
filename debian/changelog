@@ -1,3 +1,21 @@
+samba (2:4.15.13+dfsg-0ubuntu1.3) jammy; urgency=medium
+
+  * d/p/secure-channel-faulty-kb5028166.patch: fix domain membership
+    after Windows KB5028166 update (LP: #2027716)
+  * Cherry pick samba AD DC provisioning DEP8 test from later Ubuntu
+    releases (LP: #1977746, LP: #2011745):
+    - d/t/control, d/t/util, d/t/samba-ad-dc-provisioning-internal-dns:
+      samba AD DC provisioning and domain join tests with internal DNS
+      + d/t/control: adjust package dependencies
+      + d/t/samba-ad-dc-provisioning-internal-dns: handle the case where
+        libnss-winbind does not automatically add winbind to
+        /etc/nsswitch.conf (that is done only in Lunar and later)
+      + d/t/samba-ad-dc-provisioning-internal-dns: use case insensitive
+        match when inspecting kerberos tickets, as the hostname may be
+        capitalized
+
+ -- Andreas Hasenack <andreas@canonical.com>  Sun, 23 Jul 2023 17:09:59 -0300
+
 samba (2:4.15.13+dfsg-0ubuntu1.2) jammy-security; urgency=medium
 
   * SECURITY UPDATE: Out-Of-Bounds read in winbind AUTH_CRAP
