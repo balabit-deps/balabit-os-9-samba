@@ -1,3 +1,9 @@
+samba (2:4.15.13+dfsg-0ubuntu1.3bb1) jammy; urgency=medium
+
+  * Balabit patched version
+
+ -- Balabit Platform Team <devnull@dev.null>  Sat, 19 Aug 2023 03:11:42 +0000
+
 samba (2:4.15.13+dfsg-0ubuntu1.3) jammy; urgency=medium
 
   * d/p/secure-channel-faulty-kb5028166.patch: fix domain membership
