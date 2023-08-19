@@ -16,7 +16,7 @@ EOFEOF
         if [ -n "${vfs}" ]; then
             echo "vfs objects = ${vfs}" >> /etc/samba/smb.conf
         fi
-        systemctl restart smbd.service
+        systemctl reload smbd.service
     else
         echo "Share [${share}] already exists, continuing"
     fi
@@ -62,4 +62,114 @@ check_kernel_version() {
     else
         return 1
     fi
+}
+
+wait_container_ready() {
+    local container="${1}"
+    local -i limit=120 # seconds
+    local -i i=0
+    local -i result=0
+    local ip
+    local output
+
+    while /bin/true; do
+        ip=$(lxc list "${container}" -c 4 --format=compact | tail -1 | awk '{print $1}')
+        if [ -n "${ip}" ]; then
+            break
+        fi
+        i=$((i+1))
+        if [ ${i} -ge ${limit} ]; then
+            return 1
+        fi
+        sleep 1s
+        echo -n "."
+    done
+    while ! nc -z "${ip}" 22; do
+        echo -n "."
+        i=$((i+1))
+        if [ ${i} -ge ${limit} ]; then
+            return 1
+        fi
+        sleep 1s
+    done
+    # cloud-init might still be doing things...
+    # this call blocks, so wrap it in its own little timeout
+    output=$(lxc exec "${container}" -- timeout --verbose $((limit-i)) cloud-init status --wait) || {
+        result=$?
+        echo "cloud-init status --wait failed on container ${container}"
+        echo "${output}"
+        return ${result}
+    }
+    echo
+}
+
+install_lxd() {
+    if ! command -v lxd > /dev/null 2>&1; then
+        # the test depends has "lxd | snapd", so if we don't have lxd, we must
+        # install the snap
+        snap list lxd > /dev/null 2>&1 || {
+            echo "Installing the LXD snap..."
+            snap install lxd
+        }
+    fi
+}
+
+setup_lxd() {
+    local dns_domain="${1}"
+    local network
+    local nic
+    local dns_ip
+
+    install_lxd
+    # Stop samba while lxd is setup, to avoid conflicts on lxdbr0:53
+    systemctl stop samba-ad-dc
+    lxd init --auto
+    lxd waitready --timeout 600
+    network=$(lxc network list --format=compact | grep -E "bridge.*YES.*CREATED")
+    nic=$(echo "${network}" | awk '{print $1}')
+    dns_ip=$(echo "${network}" | awk '{print $4}' | cut -d / -f 1) # strip the cidr
+    # port=0 effectively disables dnsmasq's DNS, so it doesn't conflict with samba's DNS
+    lxc network set "${nic:-lxdbr0}" ipv6.address=none dns.domain="${dns_domain}" raw.dnsmasq="$(echo -e port=0\\ndhcp-option=option:dns-server,${dns_ip})"
+    if [ -n "${http_proxy}" ]; then
+        lxc config set core.proxy_http "${http_proxy}"
+    fi
+    if [ -n "${https_proxy}" ]; then
+        lxc config set core.proxy_https "${https_proxy}"
+    fi
+    if [ -n "${noproxy}" ]; then
+        lxc config set core.proxy_ignore_hosts "${noproxy}"
+    fi
+    systemctl start samba-ad-dc
+    # give it some time, it's a lot of services to start
+    sleep 5s
+}
+
+# Copy the local apt package archive over to the lxd container.
+copy_local_apt_files() {
+    local container_name="${1:-docker}"
+
+    for local_source in $(apt-get indextargets | grep-dctrl -F URI -e '^file:/' -sURI | awk '{print $2}'); do
+        local_source=${local_source#file:}
+        local_dir=$(dirname "${local_source}")
+        lxc exec "${container_name}" -- mkdir -p "${local_dir}"
+        tar -cC "${local_dir}" . | lxc exec "${container_name}" -- tar -xC "${local_dir}"
+    done
+}
+
+send_apt_config() {
+    echo "Copying over /etc/apt to container ${1}"
+    lxc exec "${1}" -- rm -rf /etc/apt
+    lxc exec "${1}" -- mkdir -p /etc/apt
+    tar -cC /etc/apt . | lxc exec "${1}" -- tar -xC /etc/apt
+}
+
+install_packages_in_container() {
+    local container="${1}"
+    shift
+    local packages="${*}"
+
+    echo "### Installing dependencies in member server container: ${packages}"
+    lxc exec "${container}" --env DEBIAN_FRONTEND=noninteractive -- apt-get update -q
+    lxc exec "${container}" --env DEBIAN_FRONTEND=noninteractive -- apt-get dist-upgrade -q -y
+    lxc exec "${container}" --env DEBIAN_FRONTEND=noninteractive -- apt-get install -q -y ${packages}
 }
