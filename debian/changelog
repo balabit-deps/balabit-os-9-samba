@@ -1,3 +1,12 @@
+samba (2:4.15.13+dfsg-0ubuntu1.4) jammy; urgency=medium
+
+  * d/p/issue-when-updating-old-passwd-containing-regex-metachars.patch:
+    Add changes to fix uncaught exception when updating old password
+    containing regex metacharacters by simplifying samba-tool password
+    redaction (LP: #2002949).
+
+ -- Michal Maloszewski <michal.maloszewski@canonical.com>  Fri, 18 Aug 2023 15:53:14 +0200
+
 samba (2:4.15.13+dfsg-0ubuntu1.3bb1) jammy; urgency=medium
 
   * Balabit patched version

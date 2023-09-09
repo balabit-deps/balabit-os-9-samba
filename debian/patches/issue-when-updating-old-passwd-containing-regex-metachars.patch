@@ -1,0 +1,25 @@
+Description: Fix samba to allow updating old password
+ The patch here is one line long. It is created from the
+ 'suggested fix' in the reported bug in Ubuntu:
+ https://bugs.launchpad.net/ubuntu/+source/samba/+bug/2002949
+ The trick is to replace '(opt_str, secret_data)' with re.escape that
+ are used to escape any special characters in 'opt_str' and
+ 'secret_data', ensuring that they are treated as literal characters in
+ the regex pattern.
+Origin: other, https://bugs.launchpad.net/ubuntu/+source/samba/+bug/2002949
+Bug: https://bugzilla.samba.org/show_bug.cgi?id=15289
+Bug-Ubuntu: https://bugs.launchpad.net/ubuntu/+source/samba/+bug/2002949
+Last-Update: 2023-08-21
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+--- a/python/samba/getopt.py
++++ b/python/samba/getopt.py
+@@ -198,7 +198,7 @@
+         #   [= ]    -> The option and the secret data might be separated by space
+         #              or equal sign.
+         #   [ ]*.*  -> After the secret data might be one, many or no space.
+-        pass_opt_re_str = "(.*[ ]+)(%s[= ]%s)([ ]*.*)" % (opt_str, secret_data)
++        pass_opt_re_str = "(.*[ ]+)(%s[= ]%s)([ ]*.*)" % (re.escape(opt_str), re.escape(secret_data))
+         pass_opt_re = re.compile(pass_opt_re_str)
+         # Get current proctitle.
+         cur_proctitle = setproctitle.getproctitle()
