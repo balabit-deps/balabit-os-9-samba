@@ -1,3 +1,9 @@
+samba (2:4.15.13+dfsg-0ubuntu1.5bb1) jammy; urgency=medium
+
+  * Balabit patched version
+
+ -- Balabit Platform Team <devnull@dev.null>  Sat, 14 Oct 2023 02:31:49 +0000
+
 samba (2:4.15.13+dfsg-0ubuntu1.5) jammy-security; urgency=medium
 
   * SECURITY UPDATE: SMB clients can truncate files with read-only
