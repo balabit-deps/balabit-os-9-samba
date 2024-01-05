@@ -1,0 +1,40 @@
+Description: Spotlight search function broken with macOS Ventura and later client Edit
+In macOS Ventura marshalling of kMDScopeArray in the "openQueryWithParams"
+request has changed from
+
+  string: kMDScopeArray
+  sl_array_t(#1): {
+    string: /foo/bar
+  }
+
+
+to:
+
+  string: kMDScopeArray
+  sl_array_t(#1): {
+    sl_array_t(#1): {
+      string: /foo/bar
+    }
+  }
+Author: Ralph Boehme <slow@samba.org>
+Origin: upstream, https://gitlab.com/samba-team/samba/-/merge_requests/2915
+Bug: https://bugzilla.samba.org/show_bug.cgi?id=15299
+Bug-Ubuntu: https://bugs.launchpad.net/ubuntu/+source/samba/+bug/2046994
+Last-Update: 2024-01-05
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+--- a/source3/rpc_server/mdssvc/mdssvc.c
++++ b/source3/rpc_server/mdssvc/mdssvc.c
+@@ -996,6 +996,12 @@
+ 
+ 	scope = dalloc_get(path_scope, "char *", 0);
+ 	if (scope == NULL) {
++		scope = dalloc_get(path_scope,
++				   "DALLOC_CTX", 0,
++				   "char *", 0);
++	}
++	if (scope == NULL) {
++		DBG_ERR("Failed to parse kMDScopeArray\n");
+ 		goto error;
+ 	}
+ 
