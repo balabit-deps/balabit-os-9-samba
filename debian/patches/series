@@ -90,3 +90,4 @@ CVE-2023-4154-19.patch
 CVE-2023-4154-20.patch
 CVE-2023-4154-21.patch
 CVE-2023-42669.patch
+lp2046994-spotlight-doesnt-work-with-latest-macos-ventura.patch

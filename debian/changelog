@@ -1,3 +1,10 @@
+samba (2:4.15.13+dfsg-0ubuntu1.6) jammy; urgency=medium
+
+  * d/p/lp2046994-spotlight-doesnt-work-with-latest-macos-ventura.patch: fix
+    spotlight search function on macos ventura (LP: #2046994).
+
+ -- Mitchell Dzurick <mitchell.dzurick@canonical.com>  Fri, 05 Jan 2024 14:23:01 -0700
+
 samba (2:4.15.13+dfsg-0ubuntu1.5bb1) jammy; urgency=medium
 
   * Balabit patched version
