@@ -1,3 +1,9 @@
+samba (2:4.15.13+dfsg-0ubuntu1.6bb1) jammy; urgency=medium
+
+  * Balabit patched version
+
+ -- Balabit Platform Team <devnull@dev.null>  Sat, 30 Mar 2024 03:29:44 +0000
+
 samba (2:4.15.13+dfsg-0ubuntu1.6) jammy; urgency=medium
 
   * d/p/lp2046994-spotlight-doesnt-work-with-latest-macos-ventura.patch: fix
