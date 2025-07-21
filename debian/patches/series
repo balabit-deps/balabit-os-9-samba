@@ -91,3 +91,9 @@ CVE-2023-4154-20.patch
 CVE-2023-4154-21.patch
 CVE-2023-42669.patch
 lp2046994-spotlight-doesnt-work-with-latest-macos-ventura.patch
+s3-winbindd-use-better-debug-messages-than-talloc_st.patch
+s3-winbindd-avoid-using-any-netlogon-call-to-get-a-d.patch
+s3-winbindd-Fix-internal-winbind-dsgetdcname-calls-w.patch
+s3-libsmb-let-discover_dc_netbios-return-DOMAIN_CONT.patch
+s3-libsmb-allow-store_cldap_reply-to-work-with-a-ipv.patch
+s3-libsmb-dsgetdcname-use-NETLOGON_NT_VERSION_AVOID_.patch

@@ -1,0 +1,173 @@
+From 1967ce819985be2e223c258284d5153713549108 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?G=C3=BCnther=20Deschner?= <gd@samba.org>
+Date: Wed, 2 Jul 2025 21:59:48 +0200
+Subject: [PATCH] s3-winbindd: Fix internal winbind dsgetdcname calls w.r.t.
+ domain name
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+when winbind calls to dsgetdcname internally, make sure to
+prefer the DNS domain name if we have it. Makes DNS lookups much more
+likely to succeed.
+
+BUG: https://bugzilla.samba.org/show_bug.cgi?id=15876
+
+Guenther
+
+Signed-off-by: Guenther Deschner <gd@samba.org>
+Reviewed-by: Andreas Schneider <asn@samba.org>
+Reviewed-by: Ralph Boehme <slow@samba.org>
+
+Autobuild-User(master): Ralph Böhme <slow@samba.org>
+Autobuild-Date(master): Mon Jul  7 10:44:37 UTC 2025 on atb-devel-224
+
+(cherry picked from commit 2560c9b3224816ffd371a62103f65b3aca301ad5)
+
+Autobuild-User(v4-21-test): Jule Anger <janger@samba.org>
+Autobuild-Date(v4-21-test): Mon Jul  7 15:42:19 UTC 2025 on atb-devel-224
+---
+ source3/winbindd/wb_queryuser.c   | 17 +++++++++++++----
+ source3/winbindd/wb_sids2xids.c   | 17 +++++++++++++----
+ source3/winbindd/wb_xids2sids.c   | 12 +++++++++---
+ source3/winbindd/winbindd_dual.c  |  6 +++++-
+ source3/winbindd/winbindd_proto.h |  1 +
+ source3/winbindd/winbindd_util.c  | 19 +++++++++++++++++++
+ 6 files changed, 60 insertions(+), 12 deletions(-)
+
+Origin: backport, https://gitlab.com/samba-team/samba/-/commit/1967ce819985be2e223c258284d5153713549108
+Bug-Debian: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1108904
+Bug-Ubuntu: https://bugs.launchpad.net/ubuntu/+source/samba/+bug/2116098
+Last-Update: 2025-07-21
+
+--- a/source3/winbindd/wb_queryuser.c
++++ b/source3/winbindd/wb_queryuser.c
+@@ -247,9 +247,18 @@
+ 
+ 	if (NT_STATUS_EQUAL(result, NT_STATUS_DOMAIN_CONTROLLER_NOT_FOUND) &&
+ 	    !state->tried_dclookup) {
+-		subreq = wb_dsgetdcname_send(
+-			state, state->ev, state->info->domain_name, NULL, NULL,
+-			DS_RETURN_DNS_NAME);
++		const char *domain_name = find_dns_domain_name(
++			state->info->domain_name);
++		D_DEBUG("GetNssInfo got DOMAIN_CONTROLLER_NOT_FOUND, calling "
++			"wb_dsgetdcname_send(%s)\n",
++			domain_name);
++
++		subreq = wb_dsgetdcname_send(state,
++									 state->ev,
++									 domain_name,
++									 NULL,
++									 NULL,
++									 DS_RETURN_DNS_NAME);
+ 		if (tevent_req_nomem(subreq, req)) {
+ 			return;
+ 		}
+--- a/source3/winbindd/wb_sids2xids.c
++++ b/source3/winbindd/wb_sids2xids.c
+@@ -566,12 +566,22 @@
+ 	    !state->tried_dclookup) {
+ 
+ 		struct lsa_DomainInfo *d;
++		const char *domain_name = NULL;
+ 
+ 		d = &state->idmap_doms.domains[state->dom_index];
+ 
+-		subreq = wb_dsgetdcname_send(
+-			state, state->ev, d->name.string, NULL, NULL,
+-			DS_RETURN_DNS_NAME);
++		domain_name = find_dns_domain_name(d->name.string);
++
++		D_DEBUG("Domain controller not found. Calling "
++			"wb_dsgetdcname_send(%s) to get it.\n",
++			domain_name);
++
++		subreq = wb_dsgetdcname_send(state,
++									 state->ev,
++									 domain_name,
++									 NULL,
++									 NULL,
++									 DS_RETURN_DNS_NAME);
+ 		if (tevent_req_nomem(subreq, req)) {
+ 			return;
+ 		}
+--- a/source3/winbindd/wb_xids2sids.c
++++ b/source3/winbindd/wb_xids2sids.c
+@@ -130,9 +130,15 @@
+ 	if (NT_STATUS_EQUAL(result, NT_STATUS_DOMAIN_CONTROLLER_NOT_FOUND) &&
+ 	    !state->tried_dclookup) {
+ 
+-		subreq = wb_dsgetdcname_send(
+-			state, state->ev, state->dom_map->name, NULL, NULL,
+-			DS_RETURN_DNS_NAME);
++		const char *domain_name = find_dns_domain_name(
++			state->dom_map->name);
++
++		subreq = wb_dsgetdcname_send(state,
++					     state->ev,
++					     domain_name,
++					     NULL,
++					     NULL,
++					     DS_RETURN_DNS_NAME);
+ 		if (tevent_req_nomem(subreq, req)) {
+ 			return;
+ 		}
+--- a/source3/winbindd/winbindd_dual.c
++++ b/source3/winbindd/winbindd_dual.c
+@@ -523,6 +523,7 @@
+ 	struct wb_domain_request_state *state = tevent_req_data(
+ 		req, struct wb_domain_request_state);
+ 	struct winbindd_domain *domain = state->domain;
++	const char *domain_name = NULL;
+ 	struct tevent_req *subreq = NULL;
+ 	size_t shortest_queue_length;
+ 
+@@ -593,8 +594,11 @@
+ 	 * which is indicated by DS_RETURN_DNS_NAME.
+ 	 * For NT4 domains we still get the netbios name.
+ 	 */
++
++	domain_name = find_dns_domain_name(state->domain->name);
++
+ 	subreq = wb_dsgetdcname_send(state, state->ev,
+-				     state->domain->name,
++				     domain_name,
+ 				     NULL, /* domain_guid */
+ 				     NULL, /* site_name */
+ 				     DS_RETURN_DNS_NAME); /* flags */
+--- a/source3/winbindd/winbindd_proto.h
++++ b/source3/winbindd/winbindd_proto.h
+@@ -548,6 +548,7 @@
+ 		   struct dom_sid **sids, uint32_t *num_sids);
+ bool parse_xidlist(TALLOC_CTX *mem_ctx, const char *xidstr,
+ 		   struct unixid **pxids, uint32_t *pnum_xids);
++const char *find_dns_domain_name(const char *domain_name);
+ 
+ /* The following definitions come from winbindd/winbindd_wins.c  */
+ 
+--- a/source3/winbindd/winbindd_util.c
++++ b/source3/winbindd/winbindd_util.c
+@@ -2314,3 +2314,22 @@
+ 	TALLOC_FREE(xids);
+ 	return false;
+ }
++
++/**
++ * Helper to extract the DNS Domain Name from a struct winbindd_domain
++ */
++const char *find_dns_domain_name(const char *domain_name)
++{
++	struct winbindd_domain *wbdom = NULL;
++
++	wbdom = find_domain_from_name(domain_name);
++	if (wbdom == NULL) {
++		return domain_name;
++	}
++
++	if (wbdom->active_directory && wbdom->alt_name != NULL) {
++		return wbdom->alt_name;
++	}
++
++	return wbdom->name;
++}
