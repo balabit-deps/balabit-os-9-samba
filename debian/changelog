@@ -1,3 +1,9 @@
+samba (2:4.15.13+dfsg-0ubuntu1.7bb1) jammy; urgency=medium
+
+  * Balabit patched version
+
+ -- Balabit Platform Team <devnull@dev.null>  Sat, 16 Aug 2025 08:51:22 +0000
+
 samba (2:4.15.13+dfsg-0ubuntu1.7) jammy; urgency=medium
 
   * Upcoming changes to Windows Server enforce security checks even on
