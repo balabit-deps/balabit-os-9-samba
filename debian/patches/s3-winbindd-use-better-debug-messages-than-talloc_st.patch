@@ -1,0 +1,59 @@
+From 814ae222ca15ff7093a71639cdcc97b9937670ce Mon Sep 17 00:00:00 2001
+From: Stefan Metzmacher <metze@samba.org>
+Date: Fri, 26 Jan 2024 09:25:11 +0100
+Subject: [PATCH] s3:winbindd: use better debug messages than 'talloc_strdup
+ failed'
+
+Signed-off-by: Stefan Metzmacher <metze@samba.org>
+Reviewed-by: Andrew Bartlett <abartlet@samba.org>
+
+Autobuild-User(master): Stefan Metzmacher <metze@samba.org>
+Autobuild-Date(master): Fri Apr  5 13:28:42 UTC 2024 on atb-devel-224
+---
+ source3/winbindd/winbindd_cm.c | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)
+
+Origin: upstream, https://gitlab.com/samba-team/samba/-/commit/814ae222ca15ff7093a71639cdcc97b9937670ce
+Bug-Debian: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1108904
+Bug-Ubuntu: https://bugs.launchpad.net/ubuntu/+source/samba/+bug/2116098
+Last-Update: 2025-07-22
+
+diff --git a/source3/winbindd/winbindd_cm.c b/source3/winbindd/winbindd_cm.c
+index 1685edbabaa2..aebb4561ae8b 100644
+--- a/source3/winbindd/winbindd_cm.c
++++ b/source3/winbindd/winbindd_cm.c
+@@ -540,7 +540,8 @@ static bool get_dc_name_via_netlogon(struct winbindd_domain *domain,
+ 			tmp = talloc_strdup(
+ 				mem_ctx, domain_info->dc_unc);
+ 			if (tmp == NULL) {
+-				DEBUG(0, ("talloc_strdup failed\n"));
++				DBG_ERR("talloc_strdup failed for dc_unc[%s]\n",
++					domain_info->dc_unc);
+ 				talloc_destroy(mem_ctx);
+ 				return false;
+ 			}
+@@ -548,7 +549,9 @@ static bool get_dc_name_via_netlogon(struct winbindd_domain *domain,
+ 				domain->alt_name = talloc_strdup(domain,
+ 								 domain_info->domain_name);
+ 				if (domain->alt_name == NULL) {
+-					DEBUG(0, ("talloc_strdup failed\n"));
++					DBG_ERR("talloc_strdup failed for "
++						"domain_info->domain_name[%s]\n",
++						domain_info->domain_name);
+ 					talloc_destroy(mem_ctx);
+ 					return false;
+ 				}
+@@ -557,7 +560,9 @@ static bool get_dc_name_via_netlogon(struct winbindd_domain *domain,
+ 				domain->forest_name = talloc_strdup(domain,
+ 								    domain_info->forest_name);
+ 				if (domain->forest_name == NULL) {
+-					DEBUG(0, ("talloc_strdup failed\n"));
++					DBG_ERR("talloc_strdup failed for "
++						"domain_info->forest_name[%s]\n",
++						domain_info->forest_name);
+ 					talloc_destroy(mem_ctx);
+ 					return false;
+ 				}
+-- 
+2.50.0
+

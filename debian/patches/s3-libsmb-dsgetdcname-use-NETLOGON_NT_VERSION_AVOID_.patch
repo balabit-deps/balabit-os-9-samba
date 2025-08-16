@@ -1,0 +1,39 @@
+From 2b66663c75cdb3bc1b6bc5b1736dd9d35b094b42 Mon Sep 17 00:00:00 2001
+From: Stefan Metzmacher <metze@samba.org>
+Date: Thu, 15 Feb 2024 17:29:46 +0100
+Subject: [PATCH] s3:libsmb/dsgetdcname: use NETLOGON_NT_VERSION_AVOID_NT4EMUL
+
+In 2024 we always want an active directory response...
+
+BUG: https://bugzilla.samba.org/show_bug.cgi?id=15620
+
+Signed-off-by: Stefan Metzmacher <metze@samba.org>
+Reviewed-by: Andrew Bartlett <abartlet@samba.org>
+---
+ source3/libsmb/dsgetdcname.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+Origin: upstream, https://gitlab.com/samba-team/samba/-/commit/2b66663c75cdb3bc1b6bc5b1736dd9d35b094b42
+Bug-Debian: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1108904
+Bug-Ubuntu: https://bugs.launchpad.net/ubuntu/+source/samba/+bug/2116098
+Last-Update: 2025-07-21
+
+diff --git a/source3/libsmb/dsgetdcname.c b/source3/libsmb/dsgetdcname.c
+index 09a6e6648b42..0fcf23a280ee 100644
+--- a/source3/libsmb/dsgetdcname.c
++++ b/source3/libsmb/dsgetdcname.c
+@@ -930,6 +930,11 @@ static NTSTATUS process_dc_netbios(TALLOC_CTX *mem_ctx,
+ 		name_type = NBT_NAME_PDC;
+ 	}
+ 
++	/*
++	 * It's 2024 we always want an AD style response!
++	 */
++	nt_version |= NETLOGON_NT_VERSION_AVOID_NT4EMUL;
++
+ 	nt_version |= map_ds_flags_to_nt_version(flags);
+ 
+ 	snprintf(my_acct_name,
+-- 
+GitLab
+

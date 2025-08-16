@@ -1,0 +1,49 @@
+From e47ce1d10b13d8ef165c70984e6e490f4c2a64c2 Mon Sep 17 00:00:00 2001
+From: Stefan Metzmacher <metze@samba.org>
+Date: Fri, 11 Oct 2024 13:32:22 +0000
+Subject: [PATCH] s3:libsmb: let discover_dc_netbios() return
+ DOMAIN_CONTROLLER_NOT_FOUND
+
+We may get NT_STATUS_NOT_FOUND when the name can't be resolved
+and NT_STATUS_INVALID_ADDRESS if the system doesn't have ipv4
+addresses...
+
+Signed-off-by: Stefan Metzmacher <metze@samba.org>
+Reviewed-by: Andreas Schneider <asn@samba.org>
+---
+ source3/libsmb/dsgetdcname.c | 14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)
+
+Origin: upstream, https://gitlab.com/samba-team/samba/-/commit/e47ce1d10b13d8ef165c70984e6e490f4c2a64c2
+Bug-Debian: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1108904
+Bug-Ubuntu: https://bugs.launchpad.net/ubuntu/+source/samba/+bug/2116098
+Last-Update: 2025-07-21
+
+diff --git a/source3/libsmb/dsgetdcname.c b/source3/libsmb/dsgetdcname.c
+index 9053ee5c8b05..6bbe4e0b4ad1 100644
+--- a/source3/libsmb/dsgetdcname.c
++++ b/source3/libsmb/dsgetdcname.c
+@@ -435,7 +435,19 @@ static NTSTATUS discover_dc_netbios(TALLOC_CTX *mem_ctx,
+ 					&count,
+ 					resolve_order);
+ 	if (!NT_STATUS_IS_OK(status)) {
+-		DEBUG(10,("discover_dc_netbios: failed to find DC\n"));
++		NTSTATUS raw_status = status;
++
++		if (NT_STATUS_EQUAL(status, NT_STATUS_NOT_FOUND)) {
++			status = NT_STATUS_DOMAIN_CONTROLLER_NOT_FOUND;
++		}
++		if (NT_STATUS_EQUAL(status, NT_STATUS_INVALID_ADDRESS)) {
++			status = NT_STATUS_DOMAIN_CONTROLLER_NOT_FOUND;
++		}
++
++		DBG_DEBUG("failed to find DC for %s: %s => %s\n",
++			  domain_name,
++			  nt_errstr(raw_status),
++			  nt_errstr(status));
+ 		return status;
+ 	}
+ 
+-- 
+GitLab
+

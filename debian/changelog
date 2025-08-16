@@ -1,3 +1,23 @@
+samba (2:4.15.13+dfsg-0ubuntu1.7) jammy; urgency=medium
+
+  * Upcoming changes to Windows Server enforce security checks even on
+    schannel secured NETLOGON connections causing winbind's netlogon dc
+    discovery calls to fail. (LP: #2116098):
+    - d/p/s3-winbindd-use-better-debug-messages-than-talloc_st.patch: use
+      better debug messages than 'talloc_strdup failed'
+    - d/p/s3-winbindd-avoid-using-any-netlogon-call-to-get-a-d.patch: avoid
+      using any netlogon call to get a dc name
+    - d/p/s3-winbindd-Fix-internal-winbind-dsgetdcname-calls-w.patch: Fix
+      internal winbind dsgetdcname calls w.r.t. domain name
+    - d/p/s3-libsmb-let-discover_dc_netbios-return-DOMAIN_CONT.patch: let
+      discover_dc_netbios() return DOMAIN_CONTROLLER_NOT_FOUND
+    - d/p/s3-libsmb-allow-store_cldap_reply-to-work-with-a-ipv.patch: allow
+      store_cldap_reply() to work with a ipv6 response
+    - d/p/s3-libsmb-dsgetdcname-use-NETLOGON_NT_VERSION_AVOID_.patch: use
+      NETLOGON_NT_VERSION_AVOID_NT4EMUL
+
+ -- Andreas Hasenack <andreas@canonical.com>  Mon, 21 Jul 2025 17:31:31 -0300
+
 samba (2:4.15.13+dfsg-0ubuntu1.6bb1) jammy; urgency=medium
 
   * Balabit patched version

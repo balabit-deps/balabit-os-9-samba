@@ -1,0 +1,60 @@
+From 712ffbffc03c7dcd551c1e22815ebe7c0b9b45d2 Mon Sep 17 00:00:00 2001
+From: Stefan Metzmacher <metze@samba.org>
+Date: Tue, 7 May 2024 14:53:24 +0000
+Subject: [PATCH] s3:libsmb: allow store_cldap_reply() to work with a ipv6
+ response
+
+BUG: https://bugzilla.samba.org/show_bug.cgi?id=15642
+
+Signed-off-by: Stefan Metzmacher <metze@samba.org>
+Reviewed-by: Andrew Bartlett <abartlet@samba.org>
+
+Autobuild-User(master): Andrew Bartlett <abartlet@samba.org>
+Autobuild-Date(master): Fri May 10 01:35:18 UTC 2024 on atb-devel-224
+---
+ source3/libsmb/dsgetdcname.c | 24 +++++++++++++++++++++++-
+ 1 file changed, 23 insertions(+), 1 deletion(-)
+
+Origin: upstream, https://gitlab.com/samba-team/samba/-/commit/712ffbffc03c7dcd551c1e22815ebe7c0b9b45d2
+Bug-Debian: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1108904
+Bug-Ubuntu: https://bugs.launchpad.net/ubuntu/+source/samba/+bug/2116098
+Last-Update: 2025-07-21
+
+diff --git a/source3/libsmb/dsgetdcname.c b/source3/libsmb/dsgetdcname.c
+index 0fcf23a280ee..654893c172c6 100644
+--- a/source3/libsmb/dsgetdcname.c
++++ b/source3/libsmb/dsgetdcname.c
+@@ -196,7 +196,29 @@ static NTSTATUS store_cldap_reply(TALLOC_CTX *mem_ctx,
+ 	/* FIXME */
+ 	r->sockaddr_size = 0x10; /* the w32 winsock addr size */
+ 	r->sockaddr.sockaddr_family = 2; /* AF_INET */
+-	r->sockaddr.pdc_ip = talloc_strdup(mem_ctx, addr);
++	if (is_ipaddress_v4(addr)) {
++		r->sockaddr.pdc_ip = talloc_strdup(mem_ctx, addr);
++		if (r->sockaddr.pdc_ip == NULL) {
++			return NT_STATUS_NO_MEMORY;
++		}
++	} else {
++		/*
++		 * ndr_push_NETLOGON_SAM_LOGON_RESPONSE_EX will
++		 * fail with an ipv6 address.
++		 *
++		 * This matches windows behaviour in the CLDAP
++		 * response when NETLOGON_NT_VERSION_5EX_WITH_IP
++		 * is used.
++		 *
++		 * Windows returns the ipv4 address of the ipv6
++		 * server interface and falls back to 127.0.0.1
++		 * if there's no ipv4 address.
++		 */
++		r->sockaddr.pdc_ip = talloc_strdup(mem_ctx, "127.0.0.1");
++		if (r->sockaddr.pdc_ip == NULL) {
++			return NT_STATUS_NO_MEMORY;
++		}
++	}
+ 
+ 	ndr_err = ndr_push_struct_blob(&blob, mem_ctx, r,
+ 		       (ndr_push_flags_fn_t)ndr_push_NETLOGON_SAM_LOGON_RESPONSE_EX);
+-- 
+GitLab
+
