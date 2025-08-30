@@ -1,3 +1,11 @@
+samba (2:4.15.13+dfsg-0ubuntu1.8) jammy; urgency=medium
+
+  * Fix config file macro expansion (LP: #2120811):
+    - no change rebuild actually fixed it in all tests (ppa and local)
+    - d/t/{control,smbclient-macro-expansion}: new DEP8 test for the issue
+
+ -- Andreas Hasenack <andreas@canonical.com>  Sat, 30 Aug 2025 14:01:16 -0300
+
 samba (2:4.15.13+dfsg-0ubuntu1.7) jammy; urgency=medium
 
   * Upcoming changes to Windows Server enforce security checks even on
