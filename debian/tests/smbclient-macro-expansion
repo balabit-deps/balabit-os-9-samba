@@ -1,0 +1,46 @@
+#!/bin/sh
+
+set -x
+set -e
+
+. debian/tests/util
+
+username="smbtest$$"
+password="$$"
+storagedir=$(mktemp -d)
+chmod 1777 "${storagedir}"
+testfile="hello.txt"
+echo hello >  "${storagedir}/${testfile}"
+
+cleanup() {
+    set +e
+    if [ -d "${storagedir}" ]; then
+        rm -rf "${storagedir}"
+    fi
+}
+
+trap cleanup EXIT
+
+# prepare a per-user config file snippet
+cat > /etc/samba/"${username}".conf <<EOF
+[global]
+[storage]
+    path = ${storagedir}
+    read only = no
+EOF
+sed -r -i "/^\[global\]$/a config file = \/etc\/samba\/%U.conf" /etc/samba/smb.conf
+systemctl reload smbd
+
+add_user "${username}" "${password}"
+
+echo "Listing //localhost/${testfile} as user ${username}"
+smbclient //localhost/storage -U "${username}"%"${password}" --command "ls ${testfile}"
+
+echo "Listing //localhost/${testfile} as anonymous should fail, because then the share doesn't exist"
+
+result=0
+smbclient //localhost/storage -N --command "ls ${testfile}" || result=$?
+if [ ${result} -eq 0 ]; then
+    echo "FAIL, this should not have worked"
+fi
+
