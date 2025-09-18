@@ -7,6 +7,9 @@ set -e
 
 username="smbtest$$"
 password="$$"
+netbios_name="netbios$$"
+# make sure we are starting fresh
+rm -f "/var/log/samba/log.${netbios_name}" 2>/dev/null || :
 storagedir=$(mktemp -d)
 chmod 1777 "${storagedir}"
 testfile="hello.txt"
@@ -28,7 +31,11 @@ cat > /etc/samba/"${username}".conf <<EOF
     path = ${storagedir}
     read only = no
 EOF
+# [global] section changes:
+# - include the per-user config file
+# - set netbios name to something we can check later to verify the %m macro
 sed -r -i "/^\[global\]$/a config file = \/etc\/samba\/%U.conf" /etc/samba/smb.conf
+sed -r -i "/^\[global\]$/a netbios name = ${netbios_name}" /etc/samba/smb.conf
 systemctl reload smbd
 
 add_user "${username}" "${password}"
@@ -44,3 +51,5 @@ if [ ${result} -eq 0 ]; then
     echo "FAIL, this should not have worked"
 fi
 
+echo "Checking if connection attempts generated a logfile log.${netbios_name}"
+ls -l "/var/log/samba/log.${netbios_name}"
