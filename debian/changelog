@@ -1,3 +1,21 @@
+samba (2:4.15.13+dfsg-0ubuntu1.10) jammy-security; urgency=medium
+
+  * SECURITY UPDATE: uninitialized memory disclosure via vfs_streams_xattr
+    - debian/patches/CVE-2025-9640-1.patch: add torture test for inserting
+      hole in stream in source3/selftest/tests.py, source4/torture/*.
+    - debian/patches/CVE-2025-9640-2.patch: fix unitialized write in
+      source3/modules/vfs_streams_xattr.c.
+    - CVE-2025-9640
+  * SECURITY UPDATE: command injection via WINS server hook script
+    - debian/patches/CVE-2025-10230-1.patch: check that wins hook sanitizes
+      names in python/samba/tests/usage.py, selftest/*, source4/torture/*,
+      testprogs/blackbox/wins_hook_test.
+    - debian/patches/CVE-2025-10230-2.patch: restrict names fed to shell in
+      source4/nbt_server/wins/wins_hook.c.
+    - CVE-2025-10230
+
+ -- Marc Deslauriers <marc.deslauriers@ubuntu.com>  Thu, 09 Oct 2025 09:51:42 -0400
+
 samba (2:4.15.13+dfsg-0ubuntu1.9) jammy; urgency=medium
 
   * Fix %m macro expansion (LP: #2123902):

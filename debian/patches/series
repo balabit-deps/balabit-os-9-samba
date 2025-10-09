@@ -98,3 +98,7 @@ s3-libsmb-let-discover_dc_netbios-return-DOMAIN_CONT.patch
 s3-libsmb-allow-store_cldap_reply-to-work-with-a-ipv.patch
 s3-libsmb-dsgetdcname-do-not-assume-local-system-uses-ipv4.patch
 s3-libsmb-dsgetdcname-use-NETLOGON_NT_VERSION_AVOID_.patch
+CVE-2025-9640-1.patch
+CVE-2025-9640-2.patch
+CVE-2025-10230-1.patch
+CVE-2025-10230-2.patch
