@@ -1,3 +1,13 @@
+samba (2:4.15.13+dfsg-0ubuntu1.9) jammy; urgency=medium
+
+  * Fix %m macro expansion (LP: #2123902):
+    - d/p/s3-libsmb-dsgetdcname-do-not-assume-local-system-uses-ipv4.patch:
+      return the first IPv4 and the first IPv6 address found for each DC. This
+      patch was missing from the backported set of the previous upload
+    - d/t/smbclient-macro-expansion: add test to check %m macro expansion
+
+ -- Andreas Hasenack <andreas@canonical.com>  Thu, 18 Sep 2025 18:08:53 -0300
+
 samba (2:4.15.13+dfsg-0ubuntu1.8bb1) jammy; urgency=medium
 
   * Balabit patched version
