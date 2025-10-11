@@ -1,3 +1,9 @@
+samba (2:4.15.13+dfsg-0ubuntu1.9bb1) jammy; urgency=medium
+
+  * Balabit patched version
+
+ -- Balabit Platform Team <devnull@dev.null>  Sat, 11 Oct 2025 08:21:17 +0000
+
 samba (2:4.15.13+dfsg-0ubuntu1.9) jammy; urgency=medium
 
   * Fix %m macro expansion (LP: #2123902):
