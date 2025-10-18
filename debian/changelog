@@ -1,3 +1,9 @@
+samba (2:4.15.13+dfsg-0ubuntu1.10bb1) jammy; urgency=medium
+
+  * Balabit patched version
+
+ -- Balabit Platform Team <devnull@dev.null>  Sat, 18 Oct 2025 08:25:50 +0000
+
 samba (2:4.15.13+dfsg-0ubuntu1.10) jammy-security; urgency=medium
 
   * SECURITY UPDATE: uninitialized memory disclosure via vfs_streams_xattr
