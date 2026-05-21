@@ -1,0 +1,59 @@
+From 2ba7ba8ff1904c8f5a6578eb19b09580fbe081c5 Mon Sep 17 00:00:00 2001
+From: Stefan Metzmacher <metze@samba.org>
+Date: Fri, 8 May 2026 22:33:32 +0200
+Subject: [PATCH 14/27] CVE-2026-4480/CVE-2026-4408: lib/util: let log_escape()
+ make use of iscntrl()
+
+using iscntrl() also handles 0x7F (DEL).
+
+BUG: https://bugzilla.samba.org/show_bug.cgi?id=16033
+BUG: https://bugzilla.samba.org/show_bug.cgi?id=16034
+
+Signed-off-by: Stefan Metzmacher <metze@samba.org>
+Reviewed-by: Douglas Bagnall <douglas.bagnall@catalyst.net.nz>
+
+[modified to make encoded_length() take unsigned char]
+---
+ lib/util/util_str_escape.c | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/lib/util/util_str_escape.c b/lib/util/util_str_escape.c
+index 93cdd8de4a8..4a2bd2e35d3 100644
+--- a/lib/util/util_str_escape.c
++++ b/lib/util/util_str_escape.c
+@@ -17,7 +17,9 @@
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+ 
+-#include "includes.h"
++#include "replace.h"
++#include "system/locale.h"
++#include "lib/util/debug.h"
+ #include "lib/util/util_str_escape.h"
+ 
+ 
+@@ -25,9 +27,9 @@
+  * Calculate the encoded length of a character for log_escape
+  *
+  */
+-static size_t encoded_length(char c)
++static size_t encoded_length(unsigned char c)
+ {
+-	if (c != '\\' &&  c > 0x1F) {
++	if (c != '\\' && !iscntrl(c)) {
+ 		return 1;
+ 	} else {
+ 		switch (c) {
+@@ -78,7 +80,7 @@ char *log_escape(TALLOC_CTX *frame, const char *in)
+ 	c = in;
+ 	e = encoded;
+ 	while (*c) {
+-		if (*c != '\\' && *c > 0x1F) {
++		if (*c != '\\' && !iscntrl((unsigned char)(*c))) {
+ 			*e++ = *c++;
+ 		} else {
+ 			switch (*c) {
+-- 
+2.43.0
+
+

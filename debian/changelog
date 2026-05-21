@@ -1,3 +1,19 @@
+samba (2:4.15.13+dfsg-0ubuntu1.12) jammy-security; urgency=medium
+
+  * SECURITY UPDATE: May 2026 security updates
+    - debian/patches/security-202605-*.patch
+    - CVE-2026-2340 - WORM vfs module does not block overwrites
+    - CVE-2026-3012 - auto-enrolment GPO installing CA certificate over
+                      http without verification
+    - CVE-2026-3238 - Denial of service against AD DC WINS server
+    - CVE-2026-4408 - Unauthenticated Remote Code Execution in Samba
+                      DCE/RPC SAMR server
+    - CVE-2026-4480 - Unauthenticated Remote Code Execution in Samba
+                      printing subsystem
+    - debian/libwbclient0.symbols: updated with new symbols.
+
+ -- Marc Deslauriers <marc.deslauriers@ubuntu.com>  Thu, 21 May 2026 13:08:17 -0400
+
 samba (2:4.15.13+dfsg-0ubuntu1.10) jammy-security; urgency=medium
 
   * SECURITY UPDATE: uninitialized memory disclosure via vfs_streams_xattr

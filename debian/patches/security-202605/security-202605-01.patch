@@ -1,0 +1,59 @@
+From f62f8127d063ad36b6a527fffe5e7f7c17f662df Mon Sep 17 00:00:00 2001
+From: Alexander Bokovoy <ab@redhat.com>
+Date: Mon, 24 Apr 2023 14:29:49 +0200
+Subject: [PATCH 01/27] wafsamba: Normalize strings in gdb output when
+ comparing ABI
+
+This fixes an issue with gdb >= 13:
+
+libndr.so: symbol ndr_transfer_syntax_ndr64 has changed
+    old_signature: uuid = {
+        time_low = 1903232307,
+        time_mid = 48826,
+        time_hi_and_version = 18743,
+        clock_seq = "\203\031",
+        node = "\265\333\357\234\314\066"
+    }, if_version = 1
+
+    new_signature: uuid = {
+        time_low = 1903232307,
+        time_mid = 48826,
+        time_hi_and_version = 18743,
+        clock_seq = "\203\031",
+        node = "\265\333\357\234\3146"
+    }, if_version = 1
+
+\314\066 and \3146 are the same as \066 translates into the char '6'. In order
+to address this we should do byte comparison in python.
+
+Pair-Programmed-With: Andreas Schneider <asn@samba.org>
+Signed-off-by: Andreas Schneider <asn@samba.org>
+Signed-off-by: Alexander Bokovoy <ab@redhat.com>
+Reviewed-by: Andrew Bartlett <abartlet@samba.org>
+
+(cherry picked from commit 60f9396a7d2211b55d3d91196561678a9f9f6942, modified to include
+Python string escaping fix from 253891032eefc3a2651a88f0aba7a619948b7642)
+---
+ buildtools/wafsamba/samba_abi.py | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/buildtools/wafsamba/samba_abi.py b/buildtools/wafsamba/samba_abi.py
+index 80643aa28d7..647a9dbe0a9 100644
+--- a/buildtools/wafsamba/samba_abi.py
++++ b/buildtools/wafsamba/samba_abi.py
+@@ -41,8 +41,9 @@ def normalise_signature(sig):
+ 
+ def normalise_varargs(sig):
+     '''cope with older versions of gdb'''
+-    sig = re.sub(',\s\.\.\.', '', sig)
+-    return sig
++    sig = re.sub(r',\s\.\.\.', '', sig)
++    # Make sure we compare bytes and not strings
++    return bytes(sig, encoding='utf-8').decode('unicode_escape')
+ 
+ 
+ def parse_sigs(sigs, abi_match):
+-- 
+2.43.0
+
+

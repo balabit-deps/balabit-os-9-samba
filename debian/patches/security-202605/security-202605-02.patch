@@ -1,0 +1,38 @@
+From 8243c050b4e61453b97d365a3c35d06d7dde77f5 Mon Sep 17 00:00:00 2001
+From: Douglas Bagnall <douglas.bagnall@catalyst.net.nz>
+Date: Fri, 3 Apr 2026 10:53:00 +1300
+Subject: [PATCH 02/27] developer build: do not use -Werror=enum-int-mismatch
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+This causes errors in GCC 13, which 4.17 id not ready for:
+
+../../source3/libsmb/clientgen.c:61:19: error: conflicting types for ‘cli_state_create’ due to enum/integer mismatch; have ‘struct cli_state *(TALLOC_CTX *, int,  const char *, int,  int)’ {aka ‘struct cli_state *(void *, int,  const char *, int,  int)’} [-Werror=enum-int-mismatch]
+   61 | struct cli_state *cli_state_create(TALLOC_CTX *mem_ctx,
+      |                   ^~~~~~~~~~~~~~~~
+In file included from ../../source3/libsmb/libsmb.h:28,
+                 from ../../source3/libsmb/clientgen.c:22:
+../../source3/libsmb/proto.h:174:19: note: previous declaration of ‘cli_state_create’ with type ‘struct cli_state *(TALLOC_CTX *, int,  const char *, enum smb_signing_setting,  int)’ {aka ‘struct cli_state *(void *, int,  const char *, enum smb_signing_setting,  int)’}
+  174 | struct cli_state *cli_state_create(TALLOC_CTX *mem_ctx,
+      |                   ^~~~~~~~~~~~~~~~
+cc1: all warnings being treated as errors
+
+[Fixes build]
+
+Signed-off-by: Douglas Bagnall <douglas.bagnall@catalyst.net.nz>
+---
+ buildtools/wafsamba/samba_autoconf.py | 2 ++
+ 1 file changed, 2 insertions(+)
+
+--- a/buildtools/wafsamba/samba_autoconf.py
++++ b/buildtools/wafsamba/samba_autoconf.py
+@@ -769,6 +769,8 @@ def SAMBA_CONFIG_H(conf, path=None):
+                         testflags=True)
+         conf.ADD_CFLAGS('-Werror=strict-overflow -Wstrict-overflow=2',
+                         testflags=True)
++        conf.ADD_CFLAGS('-Wno-error=enum-int-mismatch',
++                        testflags=True)
+ 
+         conf.ADD_CFLAGS('-Wformat=2 -Wno-format-y2k', testflags=True)
+         conf.ADD_CFLAGS('-Wno-format-zero-length', testflags=True)

@@ -1,0 +1,37 @@
+From dee6c180b550487069a35aee39f9dc33412e5af7 Mon Sep 17 00:00:00 2001
+From: Douglas Bagnall <douglas.bagnall@catalyst.net.nz>
+Date: Wed, 20 May 2026 14:18:37 +1200
+Subject: [PATCH 27/27] lib/util: fix test build for older backports
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Recent branches are not fussy about this, but 4.17 tries to
+include the local lib/util/time.h instead of the system time.h,
+leading to:
+
+../../lib/util/time.h:78:1: error: unknown type name ‘time_t’
+ time_t get_time_t_max(void);
+
+Signed-off-by: Douglas Bagnall <douglas.bagnall@catalyst.net.nz>
+Reviewed-by: Gary Lockyer <gary@catalyst.net.nz>
+---
+ lib/util/tests/test_string_sub.c | 1 -
+ lib/util/wscript_build           | 1 +
+ 2 files changed, 1 insertion(+), 1 deletion(-)
+
+--- a/lib/util/tests/test_string_sub.c
++++ b/lib/util/tests/test_string_sub.c
+@@ -1,4 +1,3 @@
+-
+ #include <stdarg.h>
+ #include <stddef.h>
+ #include <stdint.h>
+--- a/lib/util/wscript_build
++++ b/lib/util/wscript_build
+@@ -367,4 +367,5 @@ else:
+                       source='tests/test_string_sub.c',
+                       deps='''cmocka replace talloc samba-util
+                       ''',
++                      local_include=False,
+                       for_selftest=True)
