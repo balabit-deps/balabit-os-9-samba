@@ -337,6 +337,7 @@ libsamba-util.so.0 libwbclient0 #MINVER#
  rb_prev@SAMBA_UTIL_0.0.1 2:4.11.0
  rb_replace_node@SAMBA_UTIL_0.0.1 2:4.11.0
  realloc_array@SAMBA_UTIL_0.0.1 2:4.11.0
+ realloc_string_sub_raw@SAMBA_UTIL_0.0.1 2:4.15.13+dfsg-0ubuntu1.12
  reinit_iconv_handle@SAMBA_UTIL_0.0.1 2:4.11.0
  rfc1738_escape_part@SAMBA_UTIL_0.0.1 2:4.11.0
  rfc1738_unescape@SAMBA_UTIL_0.0.1 2:4.11.0
@@ -473,6 +474,7 @@ libsamba-util.so.0 libwbclient0 #MINVER#
  strnrchr_w@SAMBA_UTIL_0.0.1 2:4.11.0
  strrchr_m@SAMBA_UTIL_0.0.1 2:4.11.0
  strrchr_w@SAMBA_UTIL_0.0.1 2:4.11.0
+ strstr_for_invalid_account_characters@SAMBA_UTIL_0.0.1 2:4.15.13+dfsg-0ubuntu1.12
  strstr_m@SAMBA_UTIL_0.0.1 2:4.11.0
  strstr_w@SAMBA_UTIL_0.0.1 2:4.11.0
  strupper_talloc@SAMBA_UTIL_0.0.1 2:4.11.0
@@ -501,6 +503,8 @@ libsamba-util.so.0 libwbclient0 #MINVER#
  talloc_strdup_upper@SAMBA_UTIL_0.0.1 2:4.11.0
  talloc_string_sub2@SAMBA_UTIL_0.0.1 2:4.15.5~dfsg
  talloc_string_sub@SAMBA_UTIL_0.0.1 2:4.15.5~dfsg
+ talloc_string_sub_mixed_quoting@SAMBA_UTIL_0.0.1 2:4.15.13+dfsg-0ubuntu1.12
+ talloc_string_sub_unsafe@SAMBA_UTIL_0.0.1 2:4.15.13+dfsg-0ubuntu1.12
  tfork_child_pid@SAMBA_UTIL_0.0.1 2:4.11.0
  tfork_create@SAMBA_UTIL_0.0.1 2:4.11.0
  tfork_destroy@SAMBA_UTIL_0.0.1 2:4.11.0

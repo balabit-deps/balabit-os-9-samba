@@ -1,0 +1,37 @@
+From 9886d2df1c08de2fc05a5d1068737fa04a069710 Mon Sep 17 00:00:00 2001
+From: Stefan Metzmacher <metze@samba.org>
+Date: Fri, 8 May 2026 23:27:35 +0200
+Subject: [PATCH 18/27] CVE-2026-4480: s3:testparm: warn about 'print command'
+ %J usage
+
+BUG: https://bugzilla.samba.org/show_bug.cgi?id=16033
+
+Signed-off-by: Stefan Metzmacher <metze@samba.org>
+Reviewed-by: Douglas Bagnall <douglas.bagnall@catalyst.net.nz>
+---
+ source3/utils/testparm.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/source3/utils/testparm.c b/source3/utils/testparm.c
+index c22d40b4b1f..72579fff39e 100644
+--- a/source3/utils/testparm.c
++++ b/source3/utils/testparm.c
+@@ -785,6 +785,14 @@ static void do_per_share_checks(int s)
+ 			"parameter is ignored when using CUPS libraries.\n\n",
+ 			lp_servicename(talloc_tos(), lp_sub, s));
+ 	}
++	if (talloc_string_sub_mixed_quoting(lp_print_command(s), 'J')) {
++		fprintf(stderr,
++			"WARNING: Service %s defines a 'print command' "
++			"with mixed quoting and %%J.\n"
++			"CVE-2026-4480 changed the way %%J substitution works.\n"
++			"You should use single quotes (directly) around '%%J'.\n\n",
++			lp_servicename(talloc_tos(), lp_sub, s));
++	}
+ 
+ 	vfs_objects = lp_vfs_objects(s);
+ 	if (vfs_objects && str_list_check(vfs_objects, "fruit")) {
+-- 
+2.43.0
+
+

@@ -1,0 +1,62 @@
+From 8be970dc342a83973bead0aaf265b3813ebadef8 Mon Sep 17 00:00:00 2001
+From: Volker Lendecke <vl@samba.org>
+Date: Tue, 24 Feb 2026 16:30:46 +0100
+Subject: [PATCH 05/27] CVE-2026-3238 winsserver4: Validate incoming packets
+
+Avoid NULL pointer dereferences, leading to a crash in the nbt process
+serving wins.
+
+Thanks to Arad Inbar, Erez Cohen, Nir Somech and Ben Grinberg from
+DREAM Security Research Team for pointing out this crash bug out to
+the Samba team.
+
+Bug: https://bugzilla.samba.org/show_bug.cgi?id=16012
+Signed-off-by: Volker Lendecke <vl@samba.org>
+Reviewed-by: Douglas Bagnall <douglas.bagnall@catalyst.net.nz>
+---
+ source4/nbt_server/wins/winsserver.c | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
+
+diff --git a/source4/nbt_server/wins/winsserver.c b/source4/nbt_server/wins/winsserver.c
+index 438677ab269..50ca782f3c2 100644
+--- a/source4/nbt_server/wins/winsserver.c
++++ b/source4/nbt_server/wins/winsserver.c
+@@ -471,9 +471,16 @@ static void nbtd_winsserver_register(struct nbt_name_socket *nbtsock,
+ 	struct winsdb_addr *winsdb_addr = NULL;
+ 	bool duplicate_packet;
+ 
++	NBTD_ASSERT_PACKET(packet, src, packet->qdcount > 0);
++	NBTD_ASSERT_PACKET(packet, src, packet->arcount > 0);
++
+ 	name = &packet->questions[0].name;
+ 	additional = packet->additional;
+ 
++	NBTD_ASSERT_PACKET(packet,
++			   src,
++			   additional[0].rdata.netbios.length > 0);
++
+ 	addresses = additional[0].rdata.netbios.addresses;
+ 
+ 	nb_flags = addresses[0].nb_flags;
+@@ -746,6 +753,8 @@ static void nbtd_winsserver_query(struct loadparm_context *lp_ctx,
+ 	const char **addresses_1b = NULL;
+ 	uint16_t nb_flags = 0;
+ 
++	NBTD_ASSERT_PACKET(packet, src, packet->qdcount > 0);
++
+ 	name = &packet->questions[0].name;
+ 
+ 	if (name->type == NBT_NAME_MASTER) {
+@@ -888,6 +897,8 @@ static void nbtd_winsserver_release(struct nbt_name_socket *nbtsock,
+ 	uint32_t modify_flags = 0;
+ 	uint8_t ret;
+ 
++	NBTD_ASSERT_PACKET(packet, src, packet->qdcount > 0);
++
+ 	name = &packet->questions[0].name;
+ 
+ 	if (name->type == NBT_NAME_MASTER) {
+-- 
+2.43.0
+
+

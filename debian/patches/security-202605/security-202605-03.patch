@@ -1,0 +1,68 @@
+From 53ef4320d193194d6ec213ab900459d96629942a Mon Sep 17 00:00:00 2001
+From: Andreas Schneider <asn@samba.org>
+Date: Tue, 22 Aug 2023 15:52:16 +0200
+Subject: [PATCH 03/27] waf: Build nmbd with -Wno-error=stringop-overflow
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+We use strlcpy() which has been added to glibc recently. This means we
+also get fortification for strlcpy() now:
+
+source3/nmbd/nmbd_browsesync.c: In function ‘find_domain_master_name_query_success’:
+source3/nmbd/nmbd_browsesync.c:337:9: warning: ‘strlcpy’ writing 257 bytes into a
+region of size 16 overflows the destination [-Wstringop-overflow=]
+  337 |         strlcpy(userdata->data, work->work_group, size - sizeof(*userdata));
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+We allocate memory for the userdata struct + fstring. However the data
+pointer we use only is 16 bytes. Also nowadays you would use offsetof()
+for the allocation calculation, but it only works correctly on newer
+compilers like gcc > 7. We could make use of it in future after CentOS 7
+is gone.
+
+As we don't want to touch nmbd anymore, just silence the warnings.
+
+Signed-off-by: Andreas Schneider <asn@samba.org>
+Reviewed-by: Andrew Bartlett <abartlet@samba.org>
+(cherry picked from commit 8e7a62b6ffa0d78bbe8a606e2b3087572cdcf713)
+---
+ buildtools/wafsamba/samba_autoconf.py | 6 ++++++
+ source3/nmbd/wscript_build            | 5 +++++
+ 2 files changed, 11 insertions(+)
+
+--- a/buildtools/wafsamba/samba_autoconf.py
++++ b/buildtools/wafsamba/samba_autoconf.py
+@@ -791,6 +791,12 @@ int main(void) {
+                 conf.env['EXTRA_CFLAGS'] = []
+             conf.env['EXTRA_CFLAGS'].extend(TO_LIST("-Werror=format"))
+ 
++        if CHECK_CFLAGS(conf, ["-Wno-error=array-bounds"]):
++            conf.define('HAVE_WNO_ERROR_ARRAY_BOUNDS', 1)
++
++        if CHECK_CFLAGS(conf, ["-Wno-error=stringop-overflow"]):
++            conf.define('HAVE_WNO_ERROR_STRINGOP_OVERFLOW', 1)
++
+         if not Options.options.disable_warnings_as_errors:
+             conf.ADD_NAMED_CFLAGS('PICKY_CFLAGS', '-Werror -Wno-error=deprecated-declarations', testflags=True)
+             conf.ADD_NAMED_CFLAGS('PICKY_CFLAGS', '-Wno-error=tautological-compare', testflags=True)
+--- a/source3/nmbd/wscript_build
++++ b/source3/nmbd/wscript_build
+@@ -1,5 +1,9 @@
+ #!/usr/bin/env python
+ 
++nmbd_cflags = ''
++if bld.CONFIG_SET('HAVE_WNO_ERROR_STRINGOP_OVERFLOW'):
++    nmbd_cflags = '-Wno-error=stringop-overflow'
++
+ bld.SAMBA3_BINARY('nmbd',
+                  source='''
+                  asyncdns.c
+@@ -30,6 +34,7 @@ bld.SAMBA3_BINARY('nmbd',
+                  nmbd_workgroupdb.c
+                  nmbd_synclists.c
+                  ''',
++                 cflags=nmbd_cflags,
+                  deps='''
+                  talloc
+                  tevent
