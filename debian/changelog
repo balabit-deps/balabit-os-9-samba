@@ -1,3 +1,9 @@
+samba (2:4.15.13+dfsg-0ubuntu1.12bb1) jammy; urgency=medium
+
+  * Balabit patched version
+
+ -- Balabit Platform Team <devnull@dev.null>  Sat, 30 May 2026 10:25:33 +0200
+
 samba (2:4.15.13+dfsg-0ubuntu1.12) jammy-security; urgency=medium
 
   * SECURITY UPDATE: May 2026 security updates
